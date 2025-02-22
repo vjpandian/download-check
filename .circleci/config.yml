@@ -31,8 +31,8 @@ jobs:
       - run:
           name: "Say hello"
           command: "echo Hello, World!"
-  connector:
-    type: no-op
+
+
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
@@ -40,11 +40,23 @@ workflows:
   say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
     # Inside the workflow, you define the jobs you want to run.
     jobs:
-      - connector
       - second-job:
           requires:
             - say-hello:
                  - success
       - say-hello:
           filters: not pipeline.parameters.machine
+  
+  monthly:
+    triggers:
+      - schedule:
+          cron: 30 2,8,12 29,30,31,1,2,3 * *
+          filters:
+            branches:
+              only:
+                - main
+
+    jobs:
+      - say-hello
+
       
