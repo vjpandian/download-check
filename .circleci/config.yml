@@ -6,6 +6,13 @@ parameters:
     type: boolean
     default: false
 jobs:
+  first-job:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: echo "hello"
+      - run: exit 1
+      
   second-job:
     docker:
       - image: cimg/base:stable
@@ -27,9 +34,12 @@ jobs:
 workflows:
   say-hello-workflow:
     jobs:
+      - first-job
       - connector
       - second-job:
           requires:
+            - first-job:
+                 - failed
             - say-hello:
                  - success
       - say-hello:
