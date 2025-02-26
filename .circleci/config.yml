@@ -1,13 +1,47 @@
 version: 2.1
 
-jobs:
-  job1:
+executors:
+  docker-small:
     docker:
-      - image: ubuntu:latest
+      - image: cimg/base:current
+    resource_class: small
+
+commands:
+  fail-steps:
     steps:
-      - run: echo "hello"
+      - run: echo "this will be failed intentionally"
+      - run: exit 1
+
+jobs:
+  success-job:
+    type: no-op
+    
+  failed-job1:
+    executor: docker-small
+    steps:
+      - fail-steps
+
+  failed-job2:
+    executor: docker-small
+    steps:
+      - fail-steps
+
+  failed-job3:
+    executor: docker-small
+    steps:
+      - fail-steps
 
 workflows:
-  main:
+  failed-test:
    jobs:
-     - job1
+     - failed-job1
+     - failed-job2
+     - failed-job3
+     - success-job:
+          requires:
+            - failed-job2:
+                  - failed
+            - failed-job2:
+                  - failed
+            - failed-job2:
+                  - failed
