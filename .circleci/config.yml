@@ -10,7 +10,7 @@ commands:
   default-steps:
     steps:
       - run: echo "this will be failed intentionally"
-      - run: exit 0
+      - run: exit 1
 
 jobs:
   connector:
@@ -33,7 +33,7 @@ jobs:
   report:
     executor: docker-small
     steps:
-      - default-steps
+      - run: echo "hello"
 
 workflows:
   test-and-report:
