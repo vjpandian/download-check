@@ -7,41 +7,46 @@ executors:
     resource_class: small
 
 commands:
-  fail-steps:
+  default-steps:
     steps:
       - run: echo "this will be failed intentionally"
-      - run: exit 1
+      - run: exit 0
 
 jobs:
-  success-job:
+  connector:
     type: no-op
-    
-  failed-job1:
-    executor: docker-small
-    steps:
-      - fail-steps
 
-  failed-job2:
+  test:
     executor: docker-small
+    parameters:
+      build:
+        type: string
+        default: "docker"
+      version:
+        type: integer
+        default: 1
     steps:
-      - fail-steps
+      - run: echo <<parameters.version>>
+      - run: echo <<parameters.build>>
+      - default-steps
 
-  failed-job3:
+  report:
     executor: docker-small
     steps:
-      - fail-steps
+      - default-steps
 
 workflows:
-  failed-test:
-   jobs:
-     - failed-job1
-     - failed-job2
-     - failed-job3
-     - success-job:
+  test-and-report:
+    jobs:
+      - test:
+          matrix:
+            parameters:
+              build: [ docker ]
+              version: [ 1, 2, 3 ]
+
+      - report:
           requires:
-            - failed-job1:
-                  - failed
-            - failed-job2:
-                  - failed
-            - failed-job3:
-                  - failed
+            - test:
+              - success
+              - failed
+              - canceled
