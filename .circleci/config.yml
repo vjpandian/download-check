@@ -39,9 +39,9 @@ workflows:
      - failed-job3
      - success-job:
           requires:
-            - failed-job2:
+            - failed-job1:
                   - failed
             - failed-job2:
                   - failed
-            - failed-job2:
+            - failed-job3:
                   - failed
