@@ -11,6 +11,16 @@ commands:
     steps:
       - run: echo "this will be failed intentionally"
       - run: exit 0
+      - run:
+          name: Creating Dummy Artifacts
+          command: |
+              mkdir -p /tmp/artifacts;
+              for i in $(seq -w 1 300); do
+                  head -c 10240 </dev/zero > /tmp/artifacts/artifact-$i.txt;
+              done
+      - store_artifacts:
+            path: /tmp/artifacts
+            destination: dummy-artifacts
 
 jobs:
   connector:
