@@ -1,130 +1,52 @@
-
 version: 2.1
 
-orbs:
-  gcp-cli: circleci/gcp-cli@3.2.2
-  terraform: circleci/terraform@3.6.0
-
-parameters:
-  build-image:
-    type: boolean
-    default: false
-  gcp-project-id:
-    type: string
-    default: "676320558565"
-  oidc-wip-pool:
-    type: string
-    default: "vijay-circleci-oidc-pool"
-  oidc-wip-provider:
-    type: string
-    default: "oidc-cci-standalone"
-  gcp-sa:
-    type: string
-    default: "vijay-ca-service-account@dev-vijay-pandian.iam.gserviceaccount.com"
-  gar-registry-repo:
-    type: string
-    default: "vijay-dce"
-  image-name:
-    type: string
-    default: "base"
-  image-tag:
-    type: string
-    default: "gcp-demo"
-  
-
 executors:
-  default:
-    machine:
-      image: ubuntu-2404:current
-    environment: 
-      GOOGLE_PROJECT_NUMBER: << pipeline.parameters.gcp-project-id >>
-      GOOGLE_PROJECT_ID: << pipeline.parameters.gcp-project-id >>
-      OIDC_WIP_PROVIDER_ID: << pipeline.parameters.oidc-wip-provider >>
-      OIDC_WIP_ID: << pipeline.parameters.oidc-wip-pool >>
-      OIDC_SERVICE_ACCOUNT_EMAIL: << pipeline.parameters.gcp-sa >>
-      DOCKER_IMAGE: << pipeline.parameters.image-name >>
-
+  docker-small:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
 
 commands:
-  setup-oidc:
+  default-steps:
     steps:
-      - gcp-cli/setup:
-           use_oidc: true
-           google_project_number: GOOGLE_PROJECT_ID
-           google_project_id: GOOGLE_PROJECT_ID
-           workload_identity_pool_id: OIDC_WIP_ID
-           workload_identity_pool_provider_id: OIDC_WIP_PROVIDER_ID
-           service_account_email: OIDC_SERVICE_ACCOUNT_EMAIL
+      - run: echo "this will be failed intentionally"
+      - run: exit 0
 
 jobs:
-  terraform-gcp:
-    executor: default
-    steps:
-      - checkout
-      - run:
-          name: Install Terraform 1.8.2
-          command: |
-              curl -LO 'https://raw.githubusercontent.com/vjpandian/circleci-server4-manager/refs/heads/main/scripts/install_terraform.sh' > install_terraform.sh
-              bash install_terraform.sh
-      - setup-oidc
-      - run: 
-          name: Run terraform init
-          command: |
-              terraform init -input=false
-              terraform state list
-      - run:
-          name: Run terraform plan
-          command: terraform plan -out tfapply
-      - run:
-          when: on_success
-          command: terraform apply -auto-approve tfapply
-
-  prod-deploy-with-secrets:
-    executor: default
-    steps:
-      - setup-oidc
-      - run:
-          name: List secrets versions available within a secret
-          command: gcloud secrets versions list google-cloud-gar-secrets
-      - run: echo "deployments will happen since secrets are accessible."
-
-  pull-private-gar-images:
-    executor: default
-    steps:
-      - setup-oidc
-      - checkout
-      - run: 
-          name: Pull Docker image from Google Artifact Registry
-          command: |
-             gcloud auth configure-docker northamerica-northeast2-docker.pkg.dev
-             docker build -t $DOCKER_IMAGE:<<pipeline.parameters.image-tag>> .
-             docker tag $DOCKER_IMAGE:<< pipeline.parameters.image-tag>> northamerica-northeast2-docker.pkg.dev/dev-vijay-pandian/<<pipeline.parameters.gar-registry-repo>>/<<pipeline.parameters.image-name>>:<< pipeline.parameters.image-tag>>
-             docker push northamerica-northeast2-docker.pkg.dev/dev-vijay-pandian/vijay-dce/<<pipeline.parameters.image-name>>:<< pipeline.parameters.image-tag>>
-      - run:
-          name: Pull images as a test from Google Artifact Registry
-          command: |
-             docker pull northamerica-northeast2-docker.pkg.dev/dev-vijay-pandian/<<pipeline.parameters.gar-registry-repo>>/<<pipeline.parameters.image-name>>:<< pipeline.parameters.image-tag>>
-             docker pull northamerica-northeast2-docker.pkg.dev/dev-vijay-pandian/<<pipeline.parameters.gar-registry-repo>>/<<pipeline.parameters.image-name>>@sha256:35e5e29930ab565475a4f2aa9b4124998ed67dbc7b0e2dd5f420a4189d08d0d2
-      
-
-  list-gcs-buckets:
-    executor: default
-    steps:
-      - setup-oidc
-      - run: 
-          name: list GCS buckets
-          command: gsutil ls
-
-  gcp-no-op:
+  connector:
     type: no-op
 
+  test:
+    executor: docker-small
+    parameters:
+      build:
+        type: string
+        default: "docker"
+      version:
+        type: integer
+        default: 1
+    steps:
+      - run: echo <<parameters.version>>
+      - run: echo <<parameters.build>>
+      - default-steps
+
+  report:
+    executor: docker-small
+    steps:
+      - default-steps
 
 workflows:
-  gcp-oidc-demo:
+  test-and-report:
     jobs:
-      - terraform-gcp
-      - gcp-no-op
-      - list-gcs-buckets
-      - pull-private-gar-images:
-          filters: pipeline.parameters.build-image    
-      - prod-deploy-with-secrets
+      - test:
+          matrix:
+            parameters:
+              build: [ docker ]
+              version: [ 1, 2, 3 ]
+
+      - report:
+          requires:
+            - test:
+              - success
+              - failed
+              - canceled
