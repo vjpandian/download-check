@@ -2,9 +2,10 @@ version: 2.1
 
 executors:
   docker-small:
-    docker:
-      - image: cimg/base:current
-    resource_class: small
+    machine: true
+    #docker:
+    #  - image: cimg/base:current
+    #resource_class: small
 
 commands:
   default-steps:
